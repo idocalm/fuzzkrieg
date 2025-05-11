@@ -5,115 +5,160 @@
 #include "../../include/fuzzkrieg.h"
 #include "../../include/mutator_advanced.h"
 
+// Kernel structure templates
+kernel_struct_t kernel_structs[NUM_KERNEL_STRUCTS] = {
+    {
+        .name = "task",
+        .size = sizeof(struct task),
+        .template = NULL  // Will be initialized with actual template
+    },
+    {
+        .name = "thread",
+        .size = sizeof(struct thread),
+        .template = NULL
+    },
+    {
+        .name = "vm_map",
+        .size = sizeof(struct vm_map),
+        .template = NULL
+    },
+    {
+        .name = "mach_msg_header",
+        .size = sizeof(struct mach_msg_header),
+        .template = NULL
+    },
+    {
+        .name = "ioctl_command",
+        .size = sizeof(struct ioctl_command),
+        .template = NULL
+    }
+};
+
 // Mutate kernel structure
-void mutate_kernel_struct(testcase_t *tc, const kernel_struct_template_t *template) {
-    if (!tc || !tc->data || !template) {
-        return;
+int mutate_kernel_struct(testcase_t *tc, const kernel_struct_t *struct_template) {
+    if (!tc || !struct_template || !struct_template->template) {
+        return -1;
     }
 
-    // Ensure test case is large enough
-    if (tc->size < template->size) {
-        return;
+    // Allocate space for the structure
+    size_t new_size = tc->size + struct_template->size;
+    uint8_t *new_data = realloc(tc->data, new_size);
+    if (!new_data) {
+        return -1;
     }
 
-    // Copy template
-    memcpy(tc->data, template->template, template->size);
-
-    // Mutate variable fields
-    for (size_t i = 0; i < template->variable_fields; i++) {
-        size_t offset = (i * 4) % template->size;
-        uint32_t value = kernel_interesting_32[rand() % (sizeof(kernel_interesting_32) / sizeof(kernel_interesting_32[0]))];
-        memcpy(tc->data + offset, &value, sizeof(value));
-    }
-}
-
-// Mutate memory access patterns
-void mutate_memory_pattern(testcase_t *tc) {
-    if (!tc || !tc->data) {
-        return;
-    }
-
-    // Common memory access patterns
-    static const uint8_t patterns[][8] = {
-        {0x48, 0x8B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // mov rax, [rax]
-        {0x48, 0x89, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // mov [rax], rcx
-        {0x48, 0x8D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // lea rax, [rax]
-        {0x48, 0x83, 0xEC, 0x00, 0x00, 0x00, 0x00, 0x00}  // sub rsp, imm8
-    };
-
-    // Select a random pattern
-    const uint8_t *pattern = patterns[rand() % (sizeof(patterns) / sizeof(patterns[0]))];
+    // Copy template and mutate variable fields
+    memcpy(new_data + tc->size, struct_template->template, struct_template->size);
     
-    // Find a suitable location in the test case
-    size_t pos = rand() % (tc->size - 8);
-    memcpy(tc->data + pos, pattern, 8);
+    // Mutate some fields randomly
+    for (size_t i = 0; i < struct_template->size; i += sizeof(uint32_t)) {
+        if (rand() % 2) {  // 50% chance to mutate each field
+            *(uint32_t*)(new_data + tc->size + i) = rand();
+        }
+    }
+
+    tc->data = new_data;
+    tc->size = new_size;
+    return 0;
 }
 
-// Mutate system call parameters
-void mutate_syscall(testcase_t *tc) {
-    if (!tc || !tc->data) {
-        return;
+// Mutate memory pattern
+int mutate_memory_pattern(testcase_t *tc) {
+    if (!tc) {
+        return -1;
     }
 
-    // Common syscall patterns
-    static const uint8_t syscall_pattern[] = {
-        0x48, 0x89, 0xC7,       // mov rdi, rax
-        0x48, 0x89, 0xD6,       // mov rsi, rdx
-        0x48, 0x89, 0xCA,       // mov rdx, rcx
-        0x48, 0x89, 0xD9,       // mov rcx, rbx
-        0x0F, 0x05              // syscall
-    };
-
-    // Find a suitable location
-    if (tc->size >= sizeof(syscall_pattern)) {
-        size_t pos = rand() % (tc->size - sizeof(syscall_pattern));
-        memcpy(tc->data + pos, syscall_pattern, sizeof(syscall_pattern));
+    // Insert random memory patterns
+    size_t pattern_size = 16 + (rand() % 48);  // 16-64 bytes
+    size_t new_size = tc->size + pattern_size;
+    uint8_t *new_data = realloc(tc->data, new_size);
+    if (!new_data) {
+        return -1;
     }
+
+    // Generate pattern
+    for (size_t i = 0; i < pattern_size; i++) {
+        new_data[tc->size + i] = rand() % 256;
+    }
+
+    tc->data = new_data;
+    tc->size = new_size;
+    return 0;
 }
 
-// Mutate IOCTL commands
-void mutate_ioctl(testcase_t *tc) {
-    if (!tc || !tc->data) {
-        return;
+// Mutate syscall
+int mutate_syscall(testcase_t *tc) {
+    if (!tc) {
+        return -1;
     }
 
-    // Common IOCTL patterns
-    static const uint8_t ioctl_pattern[] = {
-        0x48, 0x89, 0xC7,       // mov rdi, rax
-        0x48, 0x89, 0xD6,       // mov rsi, rdx
-        0x48, 0x89, 0xCA,       // mov rdx, rcx
-        0x48, 0x89, 0xD9,       // mov rcx, rbx
-        0xE8, 0x00, 0x00, 0x00, 0x00  // call ioctl
-    };
-
-    // Find a suitable location
-    if (tc->size >= sizeof(ioctl_pattern)) {
-        size_t pos = rand() % (tc->size - sizeof(ioctl_pattern));
-        memcpy(tc->data + pos, ioctl_pattern, sizeof(ioctl_pattern));
+    // Insert syscall pattern
+    const char *syscall_pattern = "\x00\x00\x00\x00\x00\x00\x00\x00";  // Example pattern
+    size_t pattern_size = strlen(syscall_pattern);
+    size_t new_size = tc->size + pattern_size;
+    uint8_t *new_data = realloc(tc->data, new_size);
+    if (!new_data) {
+        return -1;
     }
+
+    // Insert at random position
+    size_t pos = rand() % (tc->size + 1);
+    memmove(new_data + pos + pattern_size, new_data + pos, tc->size - pos);
+    memcpy(new_data + pos, syscall_pattern, pattern_size);
+
+    tc->data = new_data;
+    tc->size = new_size;
+    return 0;
 }
 
-// Mutate Mach message structures
-void mutate_mach_msg(testcase_t *tc) {
-    if (!tc || !tc->data) {
-        return;
+// Mutate IOCTL
+int mutate_ioctl(testcase_t *tc) {
+    if (!tc) {
+        return -1;
     }
 
-    // Mach message header structure
-    static const uint8_t mach_msg_header[] = {
-        0x00, 0x00, 0x00, 0x00,  // msgh_bits
-        0x00, 0x00, 0x00, 0x00,  // msgh_size
-        0x00, 0x00, 0x00, 0x00,  // msgh_remote_port
-        0x00, 0x00, 0x00, 0x00,  // msgh_local_port
-        0x00, 0x00, 0x00, 0x00,  // msgh_voucher_port
-        0x00, 0x00, 0x00, 0x00   // msgh_id
-    };
-
-    // Find a suitable location
-    if (tc->size >= sizeof(mach_msg_header)) {
-        size_t pos = rand() % (tc->size - sizeof(mach_msg_header));
-        memcpy(tc->data + pos, mach_msg_header, sizeof(mach_msg_header));
+    // Insert IOCTL pattern
+    const char *ioctl_pattern = "\x00\x00\x00\x00\x00\x00\x00\x00";  // Example pattern
+    size_t pattern_size = strlen(ioctl_pattern);
+    size_t new_size = tc->size + pattern_size;
+    uint8_t *new_data = realloc(tc->data, new_size);
+    if (!new_data) {
+        return -1;
     }
+
+    // Insert at random position
+    size_t pos = rand() % (tc->size + 1);
+    memmove(new_data + pos + pattern_size, new_data + pos, tc->size - pos);
+    memcpy(new_data + pos, ioctl_pattern, pattern_size);
+
+    tc->data = new_data;
+    tc->size = new_size;
+    return 0;
+}
+
+// Mutate Mach message
+int mutate_mach_msg(testcase_t *tc) {
+    if (!tc) {
+        return -1;
+    }
+
+    // Insert Mach message header
+    const char *mach_header = "\x00\x00\x00\x00\x00\x00\x00\x00";  // Example header
+    size_t header_size = strlen(mach_header);
+    size_t new_size = tc->size + header_size;
+    uint8_t *new_data = realloc(tc->data, new_size);
+    if (!new_data) {
+        return -1;
+    }
+
+    // Insert at random position
+    size_t pos = rand() % (tc->size + 1);
+    memmove(new_data + pos + header_size, new_data + pos, tc->size - pos);
+    memcpy(new_data + pos, mach_header, header_size);
+
+    tc->data = new_data;
+    tc->size = new_size;
+    return 0;
 }
 
 // Mutate VM operations

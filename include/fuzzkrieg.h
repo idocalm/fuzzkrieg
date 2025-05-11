@@ -66,6 +66,30 @@ typedef struct {
     uint64_t start_time;
 } fuzzer_t;
 
+// Mutation strategy constants
+#define NUM_KERNEL_STRUCTS 5
+
+// Kernel structure template
+typedef struct {
+    const char *name;
+    size_t size;
+    uint8_t *template;
+} kernel_struct_t;
+
+// External kernel structure templates
+extern kernel_struct_t kernel_structs[NUM_KERNEL_STRUCTS];
+
+// Mutation strategy functions
+int mutate_kernel_struct(testcase_t *tc, const kernel_struct_t *struct_template);
+int mutate_memory_pattern(testcase_t *tc);
+int mutate_syscall(testcase_t *tc);
+int mutate_ioctl(testcase_t *tc);
+int mutate_mach_msg(testcase_t *tc);
+
+// Crash analysis and minimization
+int analyze_crash(const char *crash_log, const char *testcase_path);
+int minimize_testcase(const char *testcase_path, const char *crash_log);
+
 // Function declarations
 int fuzzer_init(fuzzer_t *fuzzer, fuzz_config_t *config);
 int fuzzer_run(fuzzer_t *fuzzer);

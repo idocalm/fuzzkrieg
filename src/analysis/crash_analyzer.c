@@ -196,67 +196,33 @@ int generate_crash_report(crash_info_t *info) {
 }
 
 // Analyze crash and generate report
-int analyze_crash(const char *log_path, const char *testcase_path) {
-    if (!log_path || !testcase_path) {
+int analyze_crash(const char *crash_log, const char *testcase_path) {
+    if (!crash_log || !testcase_path) {
         return -1;
     }
 
-    crash_info_t info;
-    memset(&info, 0, sizeof(info));
+    // TODO: Implement crash analysis
+    // This will involve:
+    // 1. Parsing the crash log
+    // 2. Identifying the crash type
+    // 3. Extracting relevant information
+    // 4. Generating a report
 
-    // Get crash type
-    info.type = analyze_crash_log(log_path);
+    return 0;
+}
 
-    // Extract information
-    info.stack_trace = extract_stack_trace(log_path);
-    info.registers = extract_registers(log_path);
-    info.timestamp = time(NULL);
-    info.testcase_path = strdup(testcase_path);
-    info.crash_log_path = strdup(log_path);
-    info.ios_version = strdup("iOS 18.0");  // Set iOS version
-
-    // Generate description based on crash type
-    switch (info.type) {
-        case CRASH_TYPE_NULL_PTR:
-            info.description = "Null pointer dereference";
-            break;
-        case CRASH_TYPE_USE_AFTER_FREE:
-            info.description = "Use-after-free";
-            break;
-        case CRASH_TYPE_DOUBLE_FREE:
-            info.description = "Double free";
-            break;
-        case CRASH_TYPE_BUFFER_OVERFLOW:
-            info.description = "Buffer overflow";
-            break;
-        case CRASH_TYPE_INTEGER_OVERFLOW:
-            info.description = "Integer overflow";
-            break;
-        case CRASH_TYPE_TYPE_CONFUSION:
-            info.description = "Type confusion";
-            break;
-        case CRASH_TYPE_RACE_CONDITION:
-            info.description = "Race condition";
-            break;
-        case CRASH_TYPE_KERNEL_PANIC:
-            info.description = "Kernel panic";
-            break;
-        case CRASH_TYPE_MEMORY_CORRUPTION:
-            info.description = "Memory corruption";
-            break;
-        default:
-            info.description = "Unknown crash type";
+// Minimize testcase
+int minimize_testcase(const char *testcase_path, const char *crash_log) {
+    if (!testcase_path || !crash_log) {
+        return -1;
     }
 
-    // Generate report
-    int ret = generate_crash_report(&info);
+    // TODO: Implement testcase minimization
+    // This will involve:
+    // 1. Reading the testcase
+    // 2. Applying minimization strategies
+    // 3. Verifying crash reproduction
+    // 4. Saving the minimized testcase
 
-    // Clean up
-    free(info.stack_trace);
-    free(info.registers);
-    free(info.testcase_path);
-    free(info.crash_log_path);
-    free(info.ios_version);
-
-    return ret;
+    return 0;
 } 
