@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -g -I./include
-LDFLAGS = -limobiledevice -lplist -lusb-1.0 -limobiledevice-glue
+CFLAGS = -Wall -Wextra -O2 -g -I./include -I/usr/local/include -I/opt/homebrew/include
+LDFLAGS = -limobiledevice -lplist -lusb-1.0 -limobiledevice-glue -L/usr/local/lib -L/opt/homebrew/lib
 
 SRC_DIR = src
 OBJ_DIR = obj
