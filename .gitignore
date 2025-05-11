@@ -1,0 +1,38 @@
+# Build directories
+bin/
+obj/
+build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Crash dumps and logs
+crashes/
+*.log
+
+# Temporary files
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Dependencies
+deps/
+*.dylib
+*.so
+*.dll
+
+# Test artifacts
+testcases/
+coverage/ 
