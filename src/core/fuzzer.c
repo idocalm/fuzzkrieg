@@ -108,7 +108,7 @@ void fuzzer_cleanup(fuzzer_t *fuzzer) {
 }
 
 // Helper function to generate test cases
-static testcase_t *generate_testcase(fuzzer_t *fuzzer) {
+testcase_t *generate_testcase(fuzzer_t *fuzzer) {
     testcase_t *tc = malloc(sizeof(testcase_t));
     if (!tc) {
         return NULL;
@@ -131,7 +131,7 @@ static testcase_t *generate_testcase(fuzzer_t *fuzzer) {
 }
 
 // Helper function to execute test case on device
-static int execute_testcase(fuzzer_t *fuzzer, testcase_t *tc) {
+int execute_testcase(fuzzer_t *fuzzer, testcase_t *tc) {
     // TODO: Implement test case execution using libimobiledevice
     // This will involve:
     // 1. Setting up the test environment on the device
@@ -142,12 +142,12 @@ static int execute_testcase(fuzzer_t *fuzzer, testcase_t *tc) {
 }
 
 // Helper function to update coverage information
-static int update_coverage(fuzzer_t *fuzzer, testcase_t *tc) {
+int update_coverage(fuzzer_t *fuzzer, testcase_t *tc) {
     return coverage_update(&fuzzer->coverage, fuzzer->coverage.map, fuzzer->coverage.map_size);
 }
 
 // Helper function to check for crashes
-static int check_crash(fuzzer_t *fuzzer) {
+int check_crash(fuzzer_t *fuzzer) {
     // TODO: Implement crash detection
     // This will involve:
     // 1. Checking device status
@@ -157,7 +157,7 @@ static int check_crash(fuzzer_t *fuzzer) {
 }
 
 // Helper function to handle crashes
-static void handle_crash(fuzzer_t *fuzzer, testcase_t *tc) {
+void handle_crash(fuzzer_t *fuzzer, testcase_t *tc) {
     fuzzer->crash_count++;
     
     // Save crash information
@@ -169,7 +169,7 @@ static void handle_crash(fuzzer_t *fuzzer, testcase_t *tc) {
 }
 
 // Helper function to determine if a test case is interesting
-static int is_interesting(fuzzer_t *fuzzer, testcase_t *tc) {
+int is_interesting(fuzzer_t *fuzzer, testcase_t *tc) {
     // TODO: Implement interesting test case detection
     // This will involve:
     // 1. Comparing coverage with previous test cases
@@ -179,7 +179,7 @@ static int is_interesting(fuzzer_t *fuzzer, testcase_t *tc) {
 }
 
 // Helper function to save interesting test cases
-static void save_interesting_case(fuzzer_t *fuzzer, testcase_t *tc) {
+void save_interesting_case(fuzzer_t *fuzzer, testcase_t *tc) {
     char path[256];
     snprintf(path, sizeof(path), "%s/interesting_%u", 
              fuzzer->config.output_dir, fuzzer->testcase_count);

@@ -81,8 +81,12 @@ int coverage_update(coverage_t *coverage, const uint8_t *map, size_t size);
 void coverage_cleanup(coverage_t *coverage);
 
 // Test case management
-testcase_t *testcase_create(const uint8_t *data, size_t size);
-void testcase_free(testcase_t *tc);
-int testcase_save(testcase_t *tc, const char *path);
+testcase_t *generate_testcase(fuzzer_t *fuzzer);
+int execute_testcase(fuzzer_t *fuzzer, testcase_t *tc);
+int update_coverage(fuzzer_t *fuzzer, testcase_t *tc);
+int check_crash(fuzzer_t *fuzzer);
+void handle_crash(fuzzer_t *fuzzer, testcase_t *tc);
+int is_interesting(fuzzer_t *fuzzer, testcase_t *tc);
+void save_interesting_case(fuzzer_t *fuzzer, testcase_t *tc);
 
 #endif // FUZZKRIEG_H 
