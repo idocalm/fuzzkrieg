@@ -114,50 +114,133 @@ testcase_t *generate_testcase(fuzzer_t *fuzzer) {
         return NULL;
     }
 
-    // TODO: Implement sophisticated test case generation
-    // For now, generate random data
-    tc->size = rand() % MAX_TESTCASE_SIZE;
-    tc->data = malloc(tc->size);
+    // Generate a test case with a mix of strategies
+    size_t size = 64 + (rand() % (MAX_TESTCASE_SIZE - 64));  // Minimum 64 bytes
+    tc->data = malloc(size);
     if (!tc->data) {
         free(tc);
         return NULL;
     }
+    tc->size = size;
 
-    for (size_t i = 0; i < tc->size; i++) {
+    // Fill with initial pattern
+    for (size_t i = 0; i < size; i++) {
         tc->data[i] = rand() % 256;
     }
+
+    // Apply mutation strategies
+    int strategy = rand() % 5;
+    switch (strategy) {
+        case 0:  // Kernel structure mutation
+            mutate_kernel_struct(tc, &kernel_structs[rand() % NUM_KERNEL_STRUCTS]);
+            break;
+        case 1:  // Memory pattern mutation
+            mutate_memory_pattern(tc);
+            break;
+        case 2:  // System call mutation
+            mutate_syscall(tc);
+            break;
+        case 3:  // IOCTL mutation
+            mutate_ioctl(tc);
+            break;
+        case 4:  // Mach message mutation
+            mutate_mach_msg(tc);
+            break;
+    }
+
+    tc->hash = 0;  // Will be computed when needed
+    tc->exec_time = 0;
+    tc->coverage_count = 0;
 
     return tc;
 }
 
 // Helper function to execute test case on device
 int execute_testcase(fuzzer_t *fuzzer, testcase_t *tc) {
-    // TODO: Implement test case execution using libimobiledevice
-    // This will involve:
-    // 1. Setting up the test environment on the device
-    // 2. Transferring the test case
-    // 3. Executing the test case
-    // 4. Collecting results and coverage information
+    if (!fuzzer || !tc || !tc->data) {
+        return -1;
+    }
+
+    // Create a temporary file for the test case
+    char temp_path[256];
+    snprintf(temp_path, sizeof(temp_path), "/tmp/fuzzkrieg_%d", getpid());
+    if (testcase_save(tc, temp_path) != 0) {
+        return -1;
+    }
+
+    // Transfer test case to device
+    if (device_transfer_file(&fuzzer->device, temp_path, "/var/root/testcase") != 0) {
+        unlink(temp_path);
+        return -1;
+    }
+
+    // Execute test case on device
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "chmod +x /var/root/testcase && /var/root/testcase");
+    if (device_execute_command(&fuzzer->device, cmd) != 0) {
+        unlink(temp_path);
+        return -1;
+    }
+
+    // Collect coverage information
+    if (device_collect_coverage(&fuzzer->device, &fuzzer->coverage) != 0) {
+        unlink(temp_path);
+        return -1;
+    }
+
+    unlink(temp_path);
     return 0;
 }
 
 // Helper function to update coverage information
 int update_coverage(fuzzer_t *fuzzer, testcase_t *tc) {
-    return coverage_update(&fuzzer->coverage, fuzzer->coverage.map, fuzzer->coverage.map_size);
+    if (!fuzzer || !tc) {
+        return -1;
+    }
+
+    // Update coverage map
+    if (coverage_update(&fuzzer->coverage, fuzzer->coverage.map, fuzzer->coverage.map_size) != 0) {
+        return -1;
+    }
+
+    // Update test case coverage count
+    tc->coverage_count = 0;
+    for (size_t i = 0; i < fuzzer->coverage.map_size; i++) {
+        if (fuzzer->coverage.map[i]) {
+            tc->coverage_count++;
+        }
+    }
+
+    return 0;
 }
 
 // Helper function to check for crashes
 int check_crash(fuzzer_t *fuzzer) {
-    // TODO: Implement crash detection
-    // This will involve:
-    // 1. Checking device status
-    // 2. Analyzing crash logs
-    // 3. Determining crash type and severity
-    return 0;
+    if (!fuzzer) {
+        return -1;
+    }
+
+    // Check device status
+    if (device_check_status(&fuzzer->device) != 0) {
+        return 1;  // Device is in a crashed state
+    }
+
+    // Check for crash logs
+    char crash_log[256];
+    snprintf(crash_log, sizeof(crash_log), "/var/log/crash_%s.log", fuzzer->device.udid);
+    if (device_file_exists(&fuzzer->device, crash_log)) {
+        return 1;  // Crash log exists
+    }
+
+    return 0;  // No crash detected
 }
 
 // Helper function to handle crashes
 void handle_crash(fuzzer_t *fuzzer, testcase_t *tc) {
+    if (!fuzzer || !tc) {
+        return;
+    }
+
     fuzzer->crash_count++;
     
     // Save crash information
@@ -165,24 +248,67 @@ void handle_crash(fuzzer_t *fuzzer, testcase_t *tc) {
     snprintf(crash_path, sizeof(crash_path), "%s/crash_%u", 
              fuzzer->config.output_dir, fuzzer->crash_count);
     
+    // Save test case
     testcase_save(tc, crash_path);
+
+    // Save crash log
+    char crash_log[256];
+    snprintf(crash_log, sizeof(crash_log), "%s/crash_%u.log", 
+             fuzzer->config.output_dir, fuzzer->crash_count);
+    
+    // Copy crash log from device
+    device_copy_file(&fuzzer->device, "/var/log/crash.log", crash_log);
+
+    // Analyze crash
+    analyze_crash(crash_log, crash_path);
+
+    // Minimize test case
+    minimize_testcase(crash_path, crash_log);
 }
 
 // Helper function to determine if a test case is interesting
 int is_interesting(fuzzer_t *fuzzer, testcase_t *tc) {
-    // TODO: Implement interesting test case detection
-    // This will involve:
-    // 1. Comparing coverage with previous test cases
-    // 2. Analyzing execution time
-    // 3. Checking for unique paths
-    return 0;
+    if (!fuzzer || !tc) {
+        return 0;
+    }
+
+    // Check if this test case increases coverage
+    if (tc->coverage_count > fuzzer->coverage.unique_paths) {
+        return 1;
+    }
+
+    // Check if this test case has unique execution time
+    if (tc->exec_time > 0 && tc->exec_time < fuzzer->config.timeout) {
+        return 1;
+    }
+
+    // Check if this test case has unique hash
+    for (uint32_t i = 0; i < fuzzer->testcase_count; i++) {
+        if (fuzzer->testcases[i].hash == tc->hash) {
+            return 0;
+        }
+    }
+
+    return 1;
 }
 
 // Helper function to save interesting test cases
 void save_interesting_case(fuzzer_t *fuzzer, testcase_t *tc) {
+    if (!fuzzer || !tc) {
+        return;
+    }
+
     char path[256];
     snprintf(path, sizeof(path), "%s/interesting_%u", 
              fuzzer->config.output_dir, fuzzer->testcase_count);
     
-    testcase_save(tc, path);
+    if (testcase_save(tc, path) == 0) {
+        // Add to test case array
+        fuzzer->testcases = realloc(fuzzer->testcases, 
+                                  (fuzzer->testcase_count + 1) * sizeof(testcase_t));
+        if (fuzzer->testcases) {
+            memcpy(&fuzzer->testcases[fuzzer->testcase_count], tc, sizeof(testcase_t));
+            fuzzer->testcase_count++;
+        }
+    }
 } 

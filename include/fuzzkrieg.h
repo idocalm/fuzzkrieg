@@ -74,6 +74,12 @@ void fuzzer_cleanup(fuzzer_t *fuzzer);
 // Device management
 int device_connect(device_ctx_t *ctx, const char *udid);
 int device_disconnect(device_ctx_t *ctx);
+int device_transfer_file(device_ctx_t *ctx, const char *local_path, const char *remote_path);
+int device_execute_command(device_ctx_t *ctx, const char *command);
+int device_check_status(device_ctx_t *ctx);
+int device_file_exists(device_ctx_t *ctx, const char *path);
+int device_copy_file(device_ctx_t *ctx, const char *remote_path, const char *local_path);
+int device_collect_coverage(device_ctx_t *ctx, coverage_t *coverage);
 
 // Coverage tracking
 int coverage_init(coverage_t *coverage);
@@ -88,5 +94,10 @@ int check_crash(fuzzer_t *fuzzer);
 void handle_crash(fuzzer_t *fuzzer, testcase_t *tc);
 int is_interesting(fuzzer_t *fuzzer, testcase_t *tc);
 void save_interesting_case(fuzzer_t *fuzzer, testcase_t *tc);
+
+// Test case utility functions
+testcase_t *testcase_create(const uint8_t *data, size_t size);
+void testcase_free(testcase_t *tc);
+int testcase_save(testcase_t *tc, const char *path);
 
 #endif // FUZZKRIEG_H 
